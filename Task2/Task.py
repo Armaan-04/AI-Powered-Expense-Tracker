@@ -1,20 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import datetime
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Database setup
+# ── Database Setup ─────────────────────────────────────────────────────────
 def get_db():
     conn = sqlite3.connect("todo.db")
     conn.row_factory = sqlite3.Row
@@ -36,12 +28,12 @@ def init_db():
 
 init_db()
 
-# Request model
+# ── Request Model ──────────────────────────────────────────────────────────
 class NoteRequest(BaseModel):
     title: str
     content: str
 
-# Routes
+# ── Routes ─────────────────────────────────────────────────────────────────
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/docs")
