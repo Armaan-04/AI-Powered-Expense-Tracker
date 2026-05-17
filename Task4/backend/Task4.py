@@ -25,10 +25,7 @@ files_db = []
 
 #Background Job
 def assemble_chunks(file_id, filename, chunks_dir):
-    """
-    Runs in the background after all chunks are received.
-    Assembles all chunks into one final file.
-    """
+   
     try:
         # update status to processing
         for file in files_db:
