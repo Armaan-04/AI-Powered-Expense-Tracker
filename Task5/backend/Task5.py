@@ -1,13 +1,13 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
-import requests
+import google.generativeai as genai
 import json
 import datetime
 import base64
 import os
-import sqlite3
+from supabase import create_client, Client
 
 app = FastAPI()
 
@@ -21,38 +21,20 @@ app.add_middleware(
 
 # Load API key from .env file
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini API URL using REST
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY
+# Configure Gemini using the official library
+genai.configure(
+    api_key=os.getenv("GEMINI_API_KEY"),
+    transport="rest"
+)
 
+# Load Gemini 2.5 Flash model
+model = genai.GenerativeModel("gemini-2.5-flash")
 
-# ── Database Setup ─────────────────────────────────────────────────────────────
-def get_db():
-    # connects to the SQLite database file
-    conn = sqlite3.connect("expenses.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    # creates the expenses table if it doesn't exist
-    conn = get_db()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS expenses (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            date        TEXT,
-            items       TEXT,
-            total_amount REAL,
-            description TEXT,
-            category    TEXT,
-            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-# run on server start
-init_db()
+# Supabase Setup
+SUPABASE_URL = os.getenv("SUPABASE_URL").strip()
+SUPABASE_KEY = os.getenv("SUPABASE_KEY").strip()
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # Redirect root to docs
@@ -65,16 +47,10 @@ def root():
 @app.post("/scan")
 async def scan_receipt(file: UploadFile = File(...)):
 
-    # read the uploaded image file as bytes
     image_bytes = await file.read()
-
-    # convert image bytes to base64 so Gemini can read it
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    # get the image type (jpeg, png etc)
     image_type = file.content_type
 
-    # prompt sent to Gemini along with the image
     prompt = """
     Look at this receipt or bill image and extract the expense details.
     Return ONLY a JSON object with these exact fields:
@@ -94,95 +70,84 @@ async def scan_receipt(file: UploadFile = File(...)):
     Return ONLY the JSON, no extra text.
     """
 
-    # build the request body for Gemini REST API
-    request_body = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "inline_data": {
-                            "mime_type": image_type,
-                            "data": image_base64
-                        }
-                    },
-                    {
-                        "text": prompt
+    response = model.generate_content([
+        {
+            "parts": [
+                {
+                    "inline_data": {
+                        "mime_type": image_type,
+                        "data": image_base64
                     }
-                ]
-            }
-        ]
-    }
+                },
+                {
+                    "text": prompt
+                }
+            ]
+        }
+    ])
 
-    # send HTTP POST request to Gemini API
-    response = requests.post(GEMINI_URL, json=request_body)
+    raw_text = response.text.strip()
 
-    # check if request was successful
-    if response.status_code != 200:
-        return {"error": "Gemini API error: " + response.text}
-
-    # extract the text response from Gemini
-    raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-    # remove markdown code blocks if Gemini wraps the JSON in them
     if raw_text.startswith("```"):
         raw_text = raw_text.split("```")[1]
         if raw_text.startswith("json"):
             raw_text = raw_text[4:]
 
-    # parse and return the JSON response
     extracted = json.loads(raw_text.strip())
     return extracted
 
 
-# Add Expense - saves a confirmed expense to SQLite database
+# Add Expense - saves a confirmed expense to Supabase
 @app.post("/expenses")
 def add_expense(expense: dict):
-    conn = get_db()
-
-    # convert items list to JSON string for storage
-    items_json = json.dumps(expense.get("items", []))
-
-    conn.execute(
-        "INSERT INTO expenses (date, items, total_amount, description, category) VALUES (?, ?, ?, ?, ?)",
-        (
-            expense.get("date"),
-            items_json,
-            expense.get("total_amount"),
-            expense.get("description"),
-            expense.get("category")
-        )
-    )
-    conn.commit()
-    conn.close()
-    return {"message": "Expense saved successfully"}
+    try:
+        # Store items as JSON string in the items TEXT column
+        items_json = json.dumps(expense.get("items", []))
+        data = {
+            "expense_date": expense.get("date"),
+            "amount": expense.get("total_amount"),
+            "description": expense.get("description"),
+            "category": expense.get("category"),
+            "items": items_json,
+        }
+        res = supabase.table("expenses").insert(data).execute()
+        return {"message": "Expense saved successfully", "data": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# Get All Expenses - returns all expenses from SQLite database
+# Get All Expenses - returns all expenses from Supabase
 @app.get("/expenses")
 def get_expenses():
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM expenses ORDER BY created_at DESC").fetchall()
-    conn.close()
+    try:
+        res = supabase.table("expenses").select("*").order("created_at", desc=True).execute()
+        expenses = res.data or []
+        # Parse items JSON string back to list for each expense
+        for expense in expenses:
+            if isinstance(expense.get("items"), str):
+                try:
+                    expense["items"] = json.loads(expense["items"])
+                except Exception:
+                    expense["items"] = []
+            elif expense.get("items") is None:
+                expense["items"] = []
+        return {"expenses": expenses}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    expenses = []
-    for row in rows:
-        expense = dict(row)
-        # convert items JSON string back to a list
-        expense["items"] = json.loads(expense["items"])
-        expenses.append(expense)
 
-    return {"expenses": expenses}
-
-
-# Delete Expense - removes an expense from the database by ID
+# Delete Expense - removes an expense from Supabase by ID
 @app.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int):
-    conn = get_db()
-    existing = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
-    if not existing:
-        conn.close()
-        return {"error": "Expense not found"}
-    conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
-    conn.commit()
-    conn.close()
-    return {"message": "Expense deleted successfully"}
+    try:
+        res = supabase.table("expenses").select("id").eq("id", expense_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Expense not found")
+        supabase.table("expenses").delete().eq("id", expense_id).execute()
+        return {"message": "Expense deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    
