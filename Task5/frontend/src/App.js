@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const API = "https://api.armaansfinancetracker.me/ai-expense"
+const API = "https://api.armaansfinancetracker.me"
 
 export default function App() {
 
