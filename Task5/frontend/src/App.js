@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://api.armaansfinancetracker.me/ai-expense"
 
 export default function App() {
 
@@ -21,7 +21,7 @@ export default function App() {
         setError(data.error);
         setExpenses([]);
       } else {
-        setExpenses(data.expenses);
+        setExpenses(data.expenses || []);
       }
     } catch (err) {
       setError("Failed to fetch expenses");
