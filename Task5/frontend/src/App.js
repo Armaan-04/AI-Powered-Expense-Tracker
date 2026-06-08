@@ -104,7 +104,7 @@ export default function App() {
 
   return (
     <div style={{ padding: "30px", fontFamily: "Arial", maxWidth: "900px", margin: "0 auto" }}>
-      <h1>AI Expense Tracker-Test</h1>
+      <h1>AI Expense Tracker</h1>
       <p style={{ color: "gray" }}>Upload a receipt and let AI extract the details</p>
       {error && (
         <div style={{ color: "red", marginBottom: "16px" }}>{error}</div>
