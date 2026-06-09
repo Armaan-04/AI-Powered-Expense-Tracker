@@ -140,6 +140,84 @@ def get_expenses():
     except Exception as e:
         print("FETCH ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/dashboard")
+def get_dashboard(year: int = None, month: int = None):
+    try:
+        response = (
+            supabase.table("expenses")
+            .select("*")
+            .execute()
+        )
+
+        expenses = response.data or []
+
+        available_years = sorted(
+            list({
+                int(exp["expense_date"].split("-")[0])
+                for exp in expenses
+                if exp.get("expense_date")
+            })
+        )
+
+        filtered = expenses
+
+        if year:
+            filtered = [
+                exp for exp in filtered
+                if int(exp["expense_date"].split("-")[0]) == year
+            ]
+
+        available_months = sorted(
+            list({
+                int(exp["expense_date"].split("-")[1])
+                for exp in filtered
+                if exp.get("expense_date")
+            })
+        )
+
+        if month:
+            filtered = [
+                exp for exp in filtered
+                if int(exp["expense_date"].split("-")[1]) == month
+            ]
+
+        category_totals = {}
+
+        for exp in filtered:
+            category = exp.get("category", "Other")
+            amount = float(exp.get("amount") or 0)
+
+            category_totals[category] = (
+                category_totals.get(category, 0) + amount
+            )
+
+        total_amount = sum(category_totals.values())
+
+        categories = []
+
+        for category, amount in category_totals.items():
+            percentage = (
+                round((amount / total_amount) * 100, 2)
+                if total_amount > 0 else 0
+            )
+
+            categories.append({
+                "category": category,
+                "amount": round(amount, 2),
+                "percentage": percentage
+            })
+
+        return {
+            "years": available_years,
+            "months": available_months,
+            "total_amount": round(total_amount, 2),
+            "expense_count": len(filtered),
+            "categories": categories
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))   
 
 
 @app.delete("/expenses/{expense_id}")

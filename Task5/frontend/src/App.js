@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
+} from "recharts";
+
 const API = "https://api.armaansfinancetracker.me"
 
 export default function App() {
@@ -9,6 +23,10 @@ export default function App() {
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(null);
   const [error, setError] = useState("");
+  const [dashboard, setDashboard] = useState(null);
+
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const fileInputRef = useRef();
 
   // Fetch all expenses from backend
@@ -29,9 +47,36 @@ export default function App() {
     }
   };
 
+  const fetchDashboard = async (year = "", month = "") => {
+  try {
+    let url = API + "/dashboard";
+
+    const params = [];
+
+    if (year) params.push(`year=${year}`);
+    if (month) params.push(`month=${month}`);
+
+    if (params.length) {
+      url += "?" + params.join("&");
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    setDashboard(data);
+    } catch (err) {
+    console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchExpenses();
-  }, []);
+    fetchDashboard();
+  },  []);
+
+  useEffect(() => {
+  fetchDashboard(selectedYear, selectedMonth);
+  }, [selectedYear, selectedMonth]);
 
   // Scan receipt
   const scanReceipt = async () => {
@@ -102,6 +147,16 @@ export default function App() {
     }
   };
 
+  const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#A855F7",
+  "#EF4444",
+  "#10B981"
+];
+
   return (
     <div style={{ padding: "30px", fontFamily: "Arial", maxWidth: "900px", margin: "0 auto" }}>
       <h1>AI Expense Tracker</h1>
@@ -167,6 +222,126 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {dashboard && (
+  <div
+    style={{
+      marginBottom: "40px",
+      padding: "20px",
+      border: "1px solid #ddd",
+      borderRadius: "8px"
+    }}
+  >
+    <h2>Expense Dashboard</h2>
+
+    <div
+      style={{
+        display: "flex",
+        gap: "15px",
+        marginBottom: "20px"
+      }}
+    >
+      <select
+        value={selectedYear}
+        onChange={(e) => {
+          setSelectedYear(e.target.value);
+          setSelectedMonth("");
+        }}
+      >
+        <option value="">All Years</option>
+
+        {dashboard.years?.map((year) => (
+          <option key={year} value={year}>
+            {year}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={selectedMonth}
+        onChange={(e) => setSelectedMonth(e.target.value)}
+      >
+        <option value="">All Months</option>
+
+        {dashboard.months?.map((month) => (
+          <option key={month} value={month}>
+            {new Date(2000, month - 1)
+              .toLocaleString("default", { month: "long" })}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        gap: "30px",
+        marginBottom: "25px"
+      }}
+    >
+      <div>
+        <strong>Total Spend</strong>
+        <div>₹{dashboard.total_amount}</div>
+      </div>
+
+      <div>
+        <strong>Expenses</strong>
+        <div>{dashboard.expense_count}</div>
+      </div>
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        gap: "30px",
+        flexWrap: "wrap"
+      }}
+    >
+      <div style={{ width: "450px", height: "350px" }}>
+        <h4>Category Percentage Breakdown</h4>
+
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={dashboard.categories}
+              dataKey="percentage"
+              nameKey="category"
+              label={(entry) =>
+                `${entry.category} (${entry.percentage}%)`
+              }
+            >
+              {dashboard.categories.map((entry, index) => (
+                <Cell
+                  key={index}
+                  fill={COLORS[index % COLORS.length]}
+                />
+              ))}
+            </Pie>
+
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ width: "550px", height: "350px" }}>
+        <h4>Category Amount Breakdown</h4>
+
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={dashboard.categories}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="category" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+
+            <Bar dataKey="amount" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Expenses Table */}
       <h3>Saved Expenses ({expenses.length})</h3>
