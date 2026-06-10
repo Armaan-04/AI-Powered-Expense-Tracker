@@ -209,7 +209,7 @@ def get_dashboard(year: int = None, month: int = None):
             })
 
         return {
-            "deployment_test": "AUTO_DEPLOY_WORKING",
+            "deployment_test": "AUTO_DEPLOY_IS_WORKING",
             "years": available_years,
             "months": available_months,
             "total_amount": round(total_amount, 2),
