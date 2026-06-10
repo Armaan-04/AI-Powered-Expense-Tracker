@@ -91,17 +91,6 @@ jobs:
             # shellcheck disable=SC1090
             source "$deploy_venv_name/bin/activate"
 
-            pids="$(pgrep -f -- "$deploy_app_process_match" || true)"
-            if [ -n "$pids" ]; then
-              for pid in $pids; do
-                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
-                  continue
-                fi
-                kill "$pid" || true
-              done
-              sleep 1
-            fi
-
-            nohup bash -lc "$deploy_app_start_command" > "$deploy_app_log_file" 2>&1 < /dev/null &
-            disown || true
-            echo "Backend restarted with command: $deploy_app_start_command"
+            sudo systemctl restart ai-expense.service
+            sudo systemctl status ai-expense.service --no-pager
+            echo "Backend restarted via systemd"
