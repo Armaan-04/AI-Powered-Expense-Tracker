@@ -47,6 +47,8 @@ export default function App() {
     }
   };
 
+
+  // Fetch dashboard data with optional year/month filters
   const fetchDashboard = async (year = "", month = "") => {
   try {
     let url = API + "/dashboard";
