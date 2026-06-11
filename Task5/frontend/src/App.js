@@ -28,6 +28,7 @@ export default function App() {
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
   const fileInputRef = useRef();
 
   // Fetch all expenses from backend
@@ -179,6 +180,7 @@ export default function App() {
         )
       );
       setSelectedExpenseIds([]);
+      setMultiSelectMode(false);
       await fetchExpenses();
       await fetchDashboard(selectedYear, selectedMonth);
     } catch (err) {
@@ -201,6 +203,28 @@ export default function App() {
         .filter((category) => category.amount > 0)
         .sort((a, b) => b.amount - a.amount)
     : [];
+
+  const RADIAN = Math.PI / 180;
+  const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 1.4;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const name = payload?.category || payload?.name || "";
+    const value = payload?.percentage != null ? `${payload.percentage}%` : "";
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#333"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={12}
+      >
+        {`${name} ${value}`}
+      </text>
+    );
+  };
 
   return (
     <div style={{ padding: "30px", fontFamily: "Arial", maxWidth: "900px", margin: "0 auto" }}>
@@ -444,12 +468,9 @@ export default function App() {
               nameKey="category"
               outerRadius={100}
               minAngle={10}
-              label={({ payload }) =>
-                payload && payload.percentage >= 5
-                  ? `${payload.category} (${payload.percentage}%)`
-                  : ""
-              }
-              labelLine={false}
+              paddingAngle={3}
+              label={renderPieLabel}
+              labelLine={true}
             >
               {chartCategories.map((entry, index) => (
                 <Cell
@@ -478,7 +499,7 @@ export default function App() {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey="amount" fill="#0088FE" barSize={40} />
+            <Bar dataKey="amount" fill="#000000" barSize={40} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -488,38 +509,63 @@ export default function App() {
 
       {/* Expenses Table */}
       <div style={{ marginBottom: "30px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h3 style={{ margin: 0 }}>Saved Expenses ({expenses.length})</h3>
           <button
-            onClick={deleteSelectedExpenses}
-            disabled={selectedExpenseIds.length === 0}
+            onClick={() => {
+              setMultiSelectMode((prev) => {
+                if (prev) setSelectedExpenseIds([]);
+                return !prev;
+              });
+            }}
             style={{
-              padding: "8px 18px",
-              background: selectedExpenseIds.length > 0 ? "#ef4444" : "#ddd",
+              padding: "10px 18px",
+              background: "#ef4444",
+              color: "#fff",
               border: "none",
-              color: selectedExpenseIds.length > 0 ? "#fff" : "#666",
               borderRadius: "6px",
-              cursor: selectedExpenseIds.length > 0 ? "pointer" : "not-allowed",
+              cursor: "pointer",
             }}
           >
-            Delete Selected {selectedExpenseIds.length > 0 ? `(${selectedExpenseIds.length})` : ""}
+            {multiSelectMode ? "Cancel Multi Delete" : "Delete Multiple Rows"}
           </button>
-          <span style={{ color: "#666" }}>Select multiple rows for batch deletion.</span>
         </div>
 
-        <h3>Saved Expenses ({expenses.length})</h3>
+        {multiSelectMode && (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+            <button
+              onClick={deleteSelectedExpenses}
+              disabled={selectedExpenseIds.length === 0}
+              style={{
+                padding: "8px 18px",
+                background: selectedExpenseIds.length > 0 ? "#ef4444" : "#ddd",
+                border: "none",
+                color: selectedExpenseIds.length > 0 ? "#fff" : "#666",
+                borderRadius: "6px",
+                cursor: selectedExpenseIds.length > 0 ? "pointer" : "not-allowed",
+              }}
+            >
+              Delete Selected ({selectedExpenseIds.length})
+            </button>
+            <span style={{ color: "#666" }}>Select rows to delete from the Actions column.</span>
+          </div>
+        )}
+
         {expenses.length === 0 ? (
           <p style={{ color: "gray" }}>No expenses saved yet.</p>
         ) : (
           <table border="1" cellPadding="10" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f0f0f0" }}>
-                <th style={{ width: "40px", textAlign: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedExpenseIds.length === expenses.length && expenses.length > 0}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
+                {multiSelectMode && (
+                  <th style={{ width: "40px", textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedExpenseIds.length === expenses.length && expenses.length > 0}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                )}
                 <th>Date</th>
                 <th>Items</th>
                 <th>Total</th>
@@ -538,13 +584,15 @@ export default function App() {
                       background: isSelected ? "#eef2ff" : "transparent",
                     }}
                   >
-                    <td style={{ textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectExpense(expense.id)}
-                      />
-                    </td>
+                    {multiSelectMode && (
+                      <td style={{ textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectExpense(expense.id)}
+                        />
+                      </td>
+                    )}
                     <td>{expense.expense_date}</td>
                     <td>
                       {expense.items && expense.items.length > 0 ? (
