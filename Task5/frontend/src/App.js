@@ -729,13 +729,15 @@ export default function App() {
                         <td>{expense.description}</td>
                         <td>{expense.category}</td>
                         <td>
-                          <button onClick={() => startEdit(expense)} style={{ marginRight: 8 }}>Edit</button>
-                          <button
-                            onClick={() => deleteExpense(expense.id)}
-                            style={{ color: "red", cursor: "pointer" }}
-                          >
-                            Delete
-                          </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button
+                              onClick={() => deleteExpense(expense.id)}
+                              style={{ color: 'red', cursor: 'pointer' }}
+                            >
+                              Delete
+                            </button>
+                            <button onClick={() => startEdit(expense)}>Edit</button>
+                          </div>
                         </td>
                       </>
                     )}
