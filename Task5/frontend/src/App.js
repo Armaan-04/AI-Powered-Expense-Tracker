@@ -27,6 +27,7 @@ export default function App() {
   const [dashboard, setDashboard] = useState(null);
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
   const fileInputRef = useRef();
 
   // Fetch all expenses from backend
@@ -145,10 +146,43 @@ export default function App() {
         setError(data.error);
       } else {
         await fetchExpenses();
+        setSelectedExpenseIds((prev) => prev.filter((selectedId) => selectedId !== id));
         await fetchDashboard(selectedYear, selectedMonth);
       }
     } catch (err) {
       setError("Failed to delete expense");
+    }
+  };
+
+  const toggleSelectExpense = (id) => {
+    setSelectedExpenseIds((prev) =>
+      prev.includes(id) ? prev.filter((selectedId) => selectedId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (expenses.length === 0) return;
+    const allIds = expenses.map((expense) => expense.id);
+    setSelectedExpenseIds((prev) =>
+      prev.length === expenses.length ? [] : allIds
+    );
+  };
+
+  const deleteSelectedExpenses = async () => {
+    if (selectedExpenseIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedExpenseIds.length} selected row(s)?`)) return;
+    setError("");
+    try {
+      await Promise.all(
+        selectedExpenseIds.map((id) =>
+          fetch(API + "/expenses/" + id, { method: "DELETE" })
+        )
+      );
+      setSelectedExpenseIds([]);
+      await fetchExpenses();
+      await fetchDashboard(selectedYear, selectedMonth);
+    } catch (err) {
+      setError("Failed to delete selected expenses");
     }
   };
 
@@ -161,6 +195,12 @@ export default function App() {
   "#EF4444",
   "#10B981"
 ];
+
+  const chartCategories = dashboard?.categories
+    ? [...dashboard.categories]
+        .filter((category) => category.amount > 0)
+        .sort((a, b) => b.amount - a.amount)
+    : [];
 
   return (
     <div style={{ padding: "30px", fontFamily: "Arial", maxWidth: "900px", margin: "0 auto" }}>
@@ -399,17 +439,19 @@ export default function App() {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={dashboard.categories}
+              data={chartCategories}
               dataKey="percentage"
               nameKey="category"
-              label={({ category, percentage }) =>
-              percentage >= 2
-                ? `${category} (${percentage}%)`
-                : ""
-                }
-                labelLine={true}
-              >
-              {dashboard.categories.map((entry, index) => (
+              outerRadius={100}
+              minAngle={10}
+              label={({ payload }) =>
+                payload && payload.percentage >= 5
+                  ? `${payload.category} (${payload.percentage}%)`
+                  : ""
+              }
+              labelLine={false}
+            >
+              {chartCategories.map((entry, index) => (
                 <Cell
                   key={index}
                   fill={COLORS[index % COLORS.length]}
@@ -417,8 +459,8 @@ export default function App() {
               ))}
             </Pie>
 
-            <Tooltip />
-            <Legend />
+            <Tooltip formatter={(value) => [`${value}`, "Percentage"]} />
+            <Legend layout="vertical" verticalAlign="middle" align="right" />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -427,14 +469,16 @@ export default function App() {
         <h4>Category Amount Breakdown</h4>
 
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={dashboard.categories}>
+          <BarChart
+            data={chartCategories}
+            margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="category" />
             <YAxis />
             <Tooltip />
             <Legend />
-
-            <Bar dataKey="amount" />
+            <Bar dataKey="amount" fill="#0088FE" barSize={40} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -443,49 +487,92 @@ export default function App() {
 )}
 
       {/* Expenses Table */}
-      <h3>Saved Expenses ({expenses.length})</h3>
-      {expenses.length === 0 ? (
-        <p style={{ color: "gray" }}>No expenses saved yet.</p>
-      ) : (
-        <table border="1" cellPadding="10" style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f0f0f0" }}>
-              <th>Date</th>
-              <th>Items</th>
-              <th>Total</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.map((expense) => (
-              <tr key={expense.id}>
-                <td>{expense.expense_date}</td>
-                <td>
-                  {/* Show items breakdown */}
-                  {expense.items && expense.items.length > 0 ? (
-                    <ul style={{ margin: 0, paddingLeft: "16px" }}>
-                      {expense.items.map((item, index) => (
-                        <li key={index}>{item.name} — ₹{item.price}</li>
-                      ))}
-                    </ul>
-                  ) : "-"}
-                </td>
-                <td>₹{expense.amount}</td>
-                <td>{expense.description}</td>
-                <td>{expense.category}</td>
-                {/* Source column removed */}
-                <td>
-                  <button onClick={() => deleteExpense(expense.id)} style={{ color: "red", cursor: "pointer" }}>
-                    Delete
-                  </button>
-                </td>
+      <div style={{ marginBottom: "30px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+          <button
+            onClick={deleteSelectedExpenses}
+            disabled={selectedExpenseIds.length === 0}
+            style={{
+              padding: "8px 18px",
+              background: selectedExpenseIds.length > 0 ? "#ef4444" : "#ddd",
+              border: "none",
+              color: selectedExpenseIds.length > 0 ? "#fff" : "#666",
+              borderRadius: "6px",
+              cursor: selectedExpenseIds.length > 0 ? "pointer" : "not-allowed",
+            }}
+          >
+            Delete Selected {selectedExpenseIds.length > 0 ? `(${selectedExpenseIds.length})` : ""}
+          </button>
+          <span style={{ color: "#666" }}>Select multiple rows for batch deletion.</span>
+        </div>
+
+        <h3>Saved Expenses ({expenses.length})</h3>
+        {expenses.length === 0 ? (
+          <p style={{ color: "gray" }}>No expenses saved yet.</p>
+        ) : (
+          <table border="1" cellPadding="10" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#f0f0f0" }}>
+                <th style={{ width: "40px", textAlign: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedExpenseIds.length === expenses.length && expenses.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {expenses.map((expense) => {
+                const isSelected = selectedExpenseIds.includes(expense.id);
+                return (
+                  <tr
+                    key={expense.id}
+                    style={{
+                      background: isSelected ? "#eef2ff" : "transparent",
+                    }}
+                  >
+                    <td style={{ textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectExpense(expense.id)}
+                      />
+                    </td>
+                    <td>{expense.expense_date}</td>
+                    <td>
+                      {expense.items && expense.items.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: "16px" }}>
+                          {expense.items.map((item, index) => (
+                            <li key={index}>{item.name} — ₹{item.price}</li>
+                          ))}
+                        </ul>
+                      ) : "-"}
+                    </td>
+                    <td>₹{expense.amount}</td>
+                    <td>{expense.description}</td>
+                    <td>{expense.category}</td>
+                    <td>
+                      <button
+                        onClick={() => deleteExpense(expense.id)}
+                        style={{ color: "red", cursor: "pointer" }}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
