@@ -29,6 +29,9 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const confirmActionRef = useRef(null);
   const fileInputRef = useRef();
 
   // Fetch all expenses from backend
@@ -137,22 +140,25 @@ export default function App() {
   };
 
   // Delete expense
-  const deleteExpense = async (id) => {
-    if (!window.confirm("Delete this expense?")) return;
-    setError("");
-    try {
-      const res = await fetch(API + "/expenses/" + id, { method: "DELETE" });
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        await fetchExpenses();
-        setSelectedExpenseIds((prev) => prev.filter((selectedId) => selectedId !== id));
-        await fetchDashboard(selectedYear, selectedMonth);
+  const deleteExpense = (id) => {
+    setConfirmMessage("Delete this expense?");
+    confirmActionRef.current = async () => {
+      setError("");
+      try {
+        const res = await fetch(API + "/expenses/" + id, { method: "DELETE" });
+        const data = await res.json();
+        if (data.error) {
+          setError(data.error);
+        } else {
+          await fetchExpenses();
+          setSelectedExpenseIds((prev) => prev.filter((selectedId) => selectedId !== id));
+          await fetchDashboard(selectedYear, selectedMonth);
+        }
+      } catch (err) {
+        setError("Failed to delete expense");
       }
-    } catch (err) {
-      setError("Failed to delete expense");
-    }
+    };
+    setConfirmOpen(true);
   };
 
   const toggleSelectExpense = (id) => {
@@ -171,21 +177,24 @@ export default function App() {
 
   const deleteSelectedExpenses = async () => {
     if (selectedExpenseIds.length === 0) return;
-    if (!window.confirm(`Delete ${selectedExpenseIds.length} selected row(s)?`)) return;
-    setError("");
-    try {
-      await Promise.all(
-        selectedExpenseIds.map((id) =>
-          fetch(API + "/expenses/" + id, { method: "DELETE" })
-        )
-      );
-      setSelectedExpenseIds([]);
-      setMultiSelectMode(false);
-      await fetchExpenses();
-      await fetchDashboard(selectedYear, selectedMonth);
-    } catch (err) {
-      setError("Failed to delete selected expenses");
-    }
+    setConfirmMessage(`Delete ${selectedExpenseIds.length} selected row(s)?`);
+    confirmActionRef.current = async () => {
+      setError("");
+      try {
+        await Promise.all(
+          selectedExpenseIds.map((id) =>
+            fetch(API + "/expenses/" + id, { method: "DELETE" })
+          )
+        );
+        setSelectedExpenseIds([]);
+        setMultiSelectMode(false);
+        await fetchExpenses();
+        await fetchDashboard(selectedYear, selectedMonth);
+      } catch (err) {
+        setError("Failed to delete selected expenses");
+      }
+    };
+    setConfirmOpen(true);
   };
 
   const COLORS = [
@@ -236,6 +245,18 @@ export default function App() {
       <p style={{ color: "gray" }}>Upload a receipt and let AI extract the details</p>
       {error && (
         <div style={{ color: "red", marginBottom: "16px" }}>{error}</div>
+      )}
+
+      {confirmOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
+          <div style={{ background: "#fff", padding: 20, borderRadius: 8, minWidth: 320, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <div style={{ marginBottom: 16, fontSize: 15 }}>{confirmMessage}</div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => { setConfirmOpen(false); confirmActionRef.current = null; }} style={{ padding: "8px 12px" }}>Cancel</button>
+              <button onClick={async () => { setConfirmOpen(false); if (confirmActionRef.current) { try { await confirmActionRef.current(); } catch (e) { console.error(e); } confirmActionRef.current = null; } }} style={{ padding: "8px 12px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 6 }}>OK</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Upload Section */}
