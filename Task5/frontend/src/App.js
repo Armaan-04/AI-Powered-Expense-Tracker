@@ -532,7 +532,7 @@ export default function App() {
               cursor: "pointer",
             }}
           >
-            {multiSelectMode ? "Cancel Multi Delete" : "Delete Multiple Rows"}
+            {multiSelectMode ? "Cancel" : "Delete Multiple Rows"}
           </button>
         </div>
 
@@ -552,7 +552,7 @@ export default function App() {
             >
               Delete Selected ({selectedExpenseIds.length})
             </button>
-            <span style={{ color: "#666" }}>Select rows to delete from the Actions column.</span>
+            <span style={{ color: "#666" }}>Select rows to delete</span>
           </div>
         )}
 
