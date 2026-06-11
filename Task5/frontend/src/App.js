@@ -211,16 +211,43 @@ export default function App() {
             style={{ marginLeft: "10px" }}
           />
         </div>
-          {editableScanned?.items && editableScanned.items.length > 0 && (
-            <div>
-              <strong>Items:</strong>
-              <ul>
-                {editableScanned.items.map((item, index) => (
-                  <li key={index}>{item.name} — ₹{item.price}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+
+        {editableScanned?.items && editableScanned.items.length > 0 && (
+  <div style={{ marginBottom: "15px" }}>
+    <strong>Items:</strong>
+
+    <ul>
+      {editableScanned.items.map((item, index) => (
+        <li key={index} style={{ marginBottom: "8px" }}>
+          {item.name} — ₹
+
+          <input
+            type="number"
+            value={item.price}
+            onChange={(e) => {
+              const updatedItems = [...editableScanned.items];
+
+              updatedItems[index] = {
+                ...updatedItems[index],
+                price: e.target.value,
+              };
+
+              setEditableScanned({
+                ...editableScanned,
+                items: updatedItems,
+              });
+            }}
+            style={{
+              width: "100px",
+              marginLeft: "5px",
+              padding: "4px",
+            }}
+          />
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
             <div style={{ marginBottom: "10px" }}>
               <strong>Total Amount:</strong>
               <input
