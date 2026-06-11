@@ -32,6 +32,7 @@ export default function App() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
   const confirmActionRef = useRef(null);
+  const [editingExpense, setEditingExpense] = useState(null);
   const fileInputRef = useRef();
 
   // Fetch all expenses from backend
@@ -173,6 +174,59 @@ export default function App() {
     setSelectedExpenseIds((prev) =>
       prev.length === expenses.length ? [] : allIds
     );
+  };
+
+  const startEdit = (expense) => {
+    const copy = {
+      ...expense,
+      items: Array.isArray(expense.items) ? expense.items.map((it) => ({ ...it })) : [],
+    };
+    setEditingExpense(copy);
+  };
+
+  const handleEditField = (field, value) => {
+    setEditingExpense((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditItemChange = (index, key, value) => {
+    setEditingExpense((prev) => {
+      const items = [...(prev.items || [])];
+      items[index] = { ...(items[index] || {}), [key]: value };
+      return { ...prev, items };
+    });
+  };
+
+  const saveEditedExpense = async (id) => {
+    setError("");
+    try {
+      const payload = {
+        date: editingExpense.expense_date,
+        total_amount: editingExpense.amount,
+        description: editingExpense.description,
+        category: editingExpense.category,
+        items: editingExpense.items || [],
+      };
+
+      const res = await fetch(API + "/expenses/" + id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+      setEditingExpense(null);
+      await fetchExpenses();
+      await fetchDashboard(selectedYear, selectedMonth);
+    } catch (err) {
+      setError("Failed to update expense");
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingExpense(null);
   };
 
   const deleteSelectedExpenses = async () => {
@@ -619,27 +673,72 @@ export default function App() {
                         />
                       </td>
                     )}
-                    <td>{expense.expense_date}</td>
-                    <td>
-                      {expense.items && expense.items.length > 0 ? (
-                        <ul style={{ margin: 0, paddingLeft: "16px" }}>
-                          {expense.items.map((item, index) => (
-                            <li key={index}>{item.name} — ₹{item.price}</li>
-                          ))}
-                        </ul>
-                      ) : "-"}
-                    </td>
-                    <td>₹{expense.amount}</td>
-                    <td>{expense.description}</td>
-                    <td>{expense.category}</td>
-                    <td>
-                      <button
-                        onClick={() => deleteExpense(expense.id)}
-                        style={{ color: "red", cursor: "pointer" }}
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    {editingExpense && editingExpense.id === expense.id ? (
+                      <>
+                        <td>
+                          <input value={editingExpense.expense_date || ""} onChange={(e) => handleEditField('expense_date', e.target.value)} />
+                        </td>
+                        <td>
+                          {editingExpense.items && editingExpense.items.length > 0 ? (
+                            <div>
+                              {editingExpense.items.map((item, idx) => (
+                                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <input value={item.name || ''} onChange={(e) => handleEditItemChange(idx, 'name', e.target.value)} style={{ width: 140 }} />
+                                  <span>—</span>
+                                  <input type="number" value={item.price || ''} onChange={(e) => handleEditItemChange(idx, 'price', e.target.value)} style={{ width: 80 }} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </td>
+                        <td>
+                          <input type="number" value={editingExpense.amount || ''} onChange={(e) => handleEditField('amount', e.target.value)} />
+                        </td>
+                        <td>
+                          <input value={editingExpense.description || ''} onChange={(e) => handleEditField('description', e.target.value)} style={{ width: 180 }} />
+                        </td>
+                        <td>
+                          <select value={editingExpense.category || 'Other'} onChange={(e) => handleEditField('category', e.target.value)}>
+                            <option value="Food">Food</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Health">Health</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </td>
+                        <td>
+                          <button onClick={() => saveEditedExpense(expense.id)} style={{ marginRight: 8 }}>Save</button>
+                          <button onClick={cancelEdit}>Cancel</button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{expense.expense_date}</td>
+                        <td>
+                          {expense.items && expense.items.length > 0 ? (
+                            <ul style={{ margin: 0, paddingLeft: "16px" }}>
+                              {expense.items.map((item, index) => (
+                                <li key={index}>{item.name} — ₹{item.price}</li>
+                              ))}
+                            </ul>
+                          ) : "-"}
+                        </td>
+                        <td>₹{expense.amount}</td>
+                        <td>{expense.description}</td>
+                        <td>{expense.category}</td>
+                        <td>
+                          <button onClick={() => startEdit(expense)} style={{ marginRight: 8 }}>Edit</button>
+                          <button
+                            onClick={() => deleteExpense(expense.id)}
+                            style={{ color: "red", cursor: "pointer" }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 );
               })}

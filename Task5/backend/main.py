@@ -233,3 +233,27 @@ def delete_expense(expense_id: int):
     except Exception as e:
         print("DELETE ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/expenses/{expense_id}")
+def update_expense(expense_id: int, expense: dict):
+    try:
+        existing = supabase.table("expenses").select("id").eq("id", expense_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Expense not found")
+
+        data = {
+            "expense_date": expense.get("date") or expense.get("expense_date"),
+            "amount": expense.get("total_amount") or expense.get("amount"),
+            "description": expense.get("description"),
+            "category": expense.get("category"),
+            "items": json.dumps(expense.get("items") or []),
+        }
+
+        supabase.table("expenses").update(data).eq("id", expense_id).execute()
+        return {"message": "Expense updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("UPDATE ERROR:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
