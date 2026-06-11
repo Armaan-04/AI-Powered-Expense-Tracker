@@ -22,9 +22,9 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(null);
+  const [editableScanned, setEditableScanned] = useState(null);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState(null);
-
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const fileInputRef = useRef();
@@ -101,6 +101,7 @@ export default function App() {
         setScanned(null);
       } else {
         setScanned(data);
+        setEditableScanned(data);
       }
     } catch (err) {
       setError("Failed to scan receipt");
@@ -116,7 +117,7 @@ export default function App() {
       const res = await fetch(API + "/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(scanned),
+        body: JSON.stringify(editableScanned),
       });
       const data = await res.json();
       if (data.error) {
@@ -126,7 +127,8 @@ export default function App() {
       setScanned(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      fetchExpenses();
+      await fetchExpenses();
+      await fetchDashboard(selectedYear, selectedMonth);
     } catch (err) {
       setError("Failed to save expense");
     }
@@ -142,7 +144,8 @@ export default function App() {
       if (data.error) {
         setError(data.error);
       } else {
-        fetchExpenses();
+        await fetchExpenses();
+        await fetchDashboard(selectedYear, selectedMonth);
       }
     } catch (err) {
       setError("Failed to delete expense");
@@ -195,26 +198,90 @@ export default function App() {
       {scanned && (
         <div style={{ padding: "20px", border: "1px solid #aaa", borderRadius: "8px", marginBottom: "30px", background: "#f9f9f9" }}>
           <h3>Extracted Details</h3>
-          <p><strong>Date:</strong> {scanned.date || "Not found"}</p>
-          {scanned.items && scanned.items.length > 0 && (
+          <div style={{ marginBottom: "10px" }}>
+          <strong>Date:</strong>
+          <input
+            value={editableScanned?.date || ""}
+            onChange={(e) =>
+                setEditableScanned({
+                  ...editableScanned,
+                  date: e.target.value,
+              })
+            }
+            style={{ marginLeft: "10px" }}
+          />
+        </div>
+          {editableScanned?.items && editableScanned.items.length > 0 && (
             <div>
               <strong>Items:</strong>
               <ul>
-                {scanned.items.map((item, index) => (
+                {editableScanned.items.map((item, index) => (
                   <li key={index}>{item.name} — ₹{item.price}</li>
                 ))}
               </ul>
             </div>
           )}
-          <p><strong>Total Amount:</strong> ₹{scanned.total_amount || "Not found"}</p>
-          <p><strong>Description:</strong> {scanned.description || "Not found"}</p>
-          <p><strong>Category:</strong> {scanned.category || "Other"}</p>
+            <div style={{ marginBottom: "10px" }}>
+              <strong>Total Amount:</strong>
+              <input
+                value={editableScanned?.total_amount || ""}
+                onChange={(e) =>
+                  setEditableScanned({
+                    ...editableScanned,
+                    total_amount: e.target.value,
+                  })
+                }
+                style={{ marginLeft: "10px" }}
+                />
+              </div>
+<div style={{ marginBottom: "10px" }}>
+  <strong>Description:</strong>
+  <input
+    value={editableScanned?.description || ""}
+    onChange={(e) =>
+      setEditableScanned({
+        ...editableScanned,
+        description: e.target.value,
+      })
+    }
+    style={{
+      marginLeft: "10px",
+      width: "300px",
+      padding: "5px"
+    }}
+  />
+</div>
+
+<div style={{ marginBottom: "10px" }}>
+  <strong>Category:</strong>
+
+  <select
+    value={editableScanned?.category || "Other"}
+    onChange={(e) =>
+      setEditableScanned({
+        ...editableScanned,
+        category: e.target.value,
+      })
+    }
+    style={{
+      marginLeft: "10px",
+      padding: "5px"
+    }}
+  >
+    <option value="Food">Food</option>
+    <option value="Travel">Travel</option>
+    <option value="Shopping">Shopping</option>
+    <option value="Health">Health</option>
+    <option value="Other">Other</option>
+  </select>
+</div>
           <button onClick={saveExpense} style={{ padding: "8px 20px", cursor: "pointer", marginRight: "10px" }}>
             Save Expense
           </button>
           <button
             onClick={() => {
               setScanned(null);
+              setEditableScanned(null);
               setSelectedFile(null);
               if (fileInputRef.current) fileInputRef.current.value = "";
             }}
@@ -308,10 +375,13 @@ export default function App() {
               data={dashboard.categories}
               dataKey="percentage"
               nameKey="category"
-              label={(entry) =>
-                `${entry.category} (${entry.percentage}%)`
-              }
-            >
+              label={({ category, percentage }) =>
+              percentage >= 2
+                ? `${category} (${percentage}%)`
+                : ""
+                }
+                labelLine={true}
+              >
               {dashboard.categories.map((entry, index) => (
                 <Cell
                   key={index}
