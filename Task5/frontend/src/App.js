@@ -461,18 +461,18 @@ export default function App() {
         flexWrap: "wrap"
       }}
     >
-<div style={{ width: "450px", height: "350px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+<div style={{ width: "520px", height: "350px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
           <h4 style={{ width: "100%", textAlign: "center" }}>Category Percentage Breakdown</h4>
 
           <ResponsiveContainer width="100%" height="90%">
-            <PieChart margin={{ top: 10, right: 80, left: 80, bottom: 10 }}>
+            <PieChart margin={{ top: 10, right: 140, left: 20, bottom: 10 }}>
               <Pie
                 data={chartCategories}
                 dataKey="percentage"
                 nameKey="category"
-                cx="50%"
+                cx="45%"
                 cy="50%"
-                outerRadius={100}
+                outerRadius={110}
                 minAngle={10}
                 paddingAngle={4}
                 label={renderPieLabel}
@@ -486,9 +486,9 @@ export default function App() {
                 ))}
               </Pie>
 
-              <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-          </PieChart>
-        </ResponsiveContainer>
+              <Legend layout="vertical" verticalAlign="middle" align="right" />
+            </PieChart>
+          </ResponsiveContainer>
       </div>
 
       <div style={{ width: "550px", height: "350px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
