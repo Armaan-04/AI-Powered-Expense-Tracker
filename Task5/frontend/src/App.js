@@ -206,7 +206,9 @@ export default function App() {
 
   const RADIAN = Math.PI / 180;
   const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }) => {
-    const radius = innerRadius + (outerRadius - innerRadius) * 1.4;
+    if (!payload || payload.percentage < 4) return null;
+
+    const radius = outerRadius + 20;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     const name = payload?.category || payload?.name || "";
@@ -219,7 +221,7 @@ export default function App() {
         fill="#333"
         textAnchor={x > cx ? "start" : "end"}
         dominantBaseline="central"
-        fontSize={12}
+        fontSize={11}
       >
         {`${name} ${value}`}
       </text>
@@ -480,7 +482,6 @@ export default function App() {
               ))}
             </Pie>
 
-            <Tooltip formatter={(value) => [`${value}`, "Percentage"]} />
             <Legend layout="vertical" verticalAlign="middle" align="right" />
           </PieChart>
         </ResponsiveContainer>
