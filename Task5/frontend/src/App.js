@@ -205,12 +205,13 @@ export default function App() {
     : [];
 
   const RADIAN = Math.PI / 180;
-  const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }) => {
-    if (!payload || payload.percentage < 4) return null;
+  const renderPieLabel = ({ cx, cy, midAngle, outerRadius, payload }) => {
+    if (!payload) return null;
 
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const radius = outerRadius + 20;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const textAnchor = x > cx ? "start" : "end";
     const name = payload?.category || payload?.name || "";
     const value = payload?.percentage != null ? `${payload.percentage}%` : "";
 
@@ -218,10 +219,11 @@ export default function App() {
       <text
         x={x}
         y={y}
-        fill="#fff"
-        textAnchor="middle"
+        fill="#333"
+        textAnchor={textAnchor}
         dominantBaseline="central"
-        fontSize={11}
+        fontSize={12}
+        fontWeight={600}
       >
         {`${name} ${value}`}
       </text>
@@ -463,18 +465,18 @@ export default function App() {
           <h4 style={{ width: "100%", textAlign: "center" }}>Category Percentage Breakdown</h4>
 
           <ResponsiveContainer width="100%" height="90%">
-            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <PieChart margin={{ top: 10, right: 80, left: 80, bottom: 10 }}>
               <Pie
                 data={chartCategories}
                 dataKey="percentage"
                 nameKey="category"
                 cx="50%"
                 cy="50%"
-                outerRadius={120}
+                outerRadius={100}
                 minAngle={10}
-                paddingAngle={3}
+                paddingAngle={4}
                 label={renderPieLabel}
-                labelLine={false}
+                labelLine={true}
               >
                 {chartCategories.map((entry, index) => (
                   <Cell
