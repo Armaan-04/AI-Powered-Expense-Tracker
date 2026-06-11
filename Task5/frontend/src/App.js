@@ -208,7 +208,7 @@ export default function App() {
   const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }) => {
     if (!payload || payload.percentage < 4) return null;
 
-    const radius = outerRadius + 20;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     const name = payload?.category || payload?.name || "";
@@ -218,8 +218,8 @@ export default function App() {
       <text
         x={x}
         y={y}
-        fill="#333"
-        textAnchor={x > cx ? "start" : "end"}
+        fill="#fff"
+        textAnchor="middle"
         dominantBaseline="central"
         fontSize={11}
       >
@@ -459,48 +459,50 @@ export default function App() {
         flexWrap: "wrap"
       }}
     >
-      <div style={{ width: "450px", height: "350px" }}>
-        <h4>Category Percentage Breakdown</h4>
+<div style={{ width: "450px", height: "350px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+          <h4 style={{ width: "100%", textAlign: "center" }}>Category Percentage Breakdown</h4>
 
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={chartCategories}
-              dataKey="percentage"
-              nameKey="category"
-              outerRadius={100}
-              minAngle={10}
-              paddingAngle={3}
-              label={renderPieLabel}
-              labelLine={true}
-            >
-              {chartCategories.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Pie>
+          <ResponsiveContainer width="100%" height="90%">
+            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+              <Pie
+                data={chartCategories}
+                dataKey="percentage"
+                nameKey="category"
+                cx="50%"
+                cy="50%"
+                outerRadius={120}
+                minAngle={10}
+                paddingAngle={3}
+                label={renderPieLabel}
+                labelLine={false}
+              >
+                {chartCategories.map((entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Pie>
 
-            <Legend layout="vertical" verticalAlign="middle" align="right" />
+              <Legend layout="horizontal" verticalAlign="bottom" align="center" />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
-      <div style={{ width: "550px", height: "350px" }}>
-        <h4>Category Amount Breakdown</h4>
+      <div style={{ width: "550px", height: "350px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+        <h4 style={{ width: "100%", textAlign: "center" }}>Category Amount Breakdown</h4>
 
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="90%">
           <BarChart
             data={chartCategories}
-            margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+            margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="category" />
             <YAxis />
             <Tooltip />
-            <Legend />
-            <Bar dataKey="amount" fill="#000000" barSize={40} />
+            <Legend verticalAlign="top" align="center" />
+            <Bar dataKey="amount" fill="#000000" barSize={36} />
           </BarChart>
         </ResponsiveContainer>
       </div>
