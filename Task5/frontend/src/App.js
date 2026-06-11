@@ -465,14 +465,14 @@ export default function App() {
           <h4 style={{ width: "100%", textAlign: "center" }}>Category Percentage Breakdown</h4>
 
           <ResponsiveContainer width="100%" height="90%">
-            <PieChart margin={{ top: 10, right: 180, left: 20, bottom: 10 }}>
+            <PieChart margin={{ top: 10, right: 180, left: 70, bottom: 10 }}>
               <Pie
                 data={chartCategories}
                 dataKey="percentage"
                 nameKey="category"
-                cx="40%"
+                cx="50%"
                 cy="50%"
-                outerRadius={95}
+                outerRadius={85}
                 minAngle={10}
                 paddingAngle={4}
                 label={renderPieLabel}
