@@ -229,6 +229,9 @@ export default function App() {
     setEditingExpense(null);
   };
 
+
+
+//Multi delete
   const deleteSelectedExpenses = async () => {
     if (selectedExpenseIds.length === 0) return;
     setConfirmMessage(`Delete ${selectedExpenseIds.length} selected row(s)?`);
@@ -607,6 +610,8 @@ export default function App() {
               cursor: "pointer",
             }}
           >
+
+          {/* Multi delete */}
             {multiSelectMode ? "Cancel" : "Delete Multiple Rows"}
           </button>
         </div>
